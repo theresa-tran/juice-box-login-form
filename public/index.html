@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Juice Box - Secure Login</title>
+<style>
+  body { font-family: Arial, sans-serif; background: #f4f4f4; display: flex; justify-content: center; align-items: center; height: 100vh; margin:0; }
+  .login-box { background: #fff; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.15); width: 320px; }
+  h2 { text-align: center; color: #ff8c00; margin-top: 0; }
+  label { display:block; margin-top: 1rem; font-size: 0.9rem; color: #333; }
+  input { width: 100%; padding: 0.6rem; margin-top: 0.3rem; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+  button { width: 100%; margin-top: 1.5rem; padding: 0.7rem; background: #ff8c00; color: #fff; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
+  button:hover { background: #e07b00; }
+  .error { color: #c0392b; font-size: 0.85rem; min-height: 1.1rem; margin-top: 0.25rem; }
+  #formMsg { text-align: center; margin-top: 1rem; font-size: 0.9rem; }
+</style>
+</head>
+<body>
+  <div class="login-box">
+    <h2>Juice Box Login</h2>
+    <form id="loginForm" novalidate>
+      <label for="email">Email</label>
+      <input type="email" id="email" name="email" autocomplete="username" required>
+      <div class="error" id="emailError"></div>
+
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" autocomplete="current-password" required>
+      <div class="error" id="passwordError"></div>
+
+      <button type="submit">Login</button>
+      <div id="formMsg"></div>
+    </form>
+  </div>
+
+<script>
+/*
+ * Client-side validation ONLY makes the experience nicer.
+ * It is NOT a security control — it can be bypassed by disabling JS,
+ * using curl/Postman, or editing the DOM. The server (server.py)
+ * re-validates and re-sanitizes everything independently.
+ */
+
+function isValidEmail(value) {
+  // basic shape check: something@something with no spaces
+  return typeof value === 'string' && value.includes('@') && !value.includes(' ') && value.trim().length > 2;
+}
+
+function isValidPassword(value) {
+  return typeof value === 'string' && value.length >= 8;
+}
+
+function setError(id, message) {
+  document.getElementById(id).textContent = message;
+}
+
+document.getElementById('loginForm').addEventListener('submit', async function (e) {
+  e.preventDefault();
+
+  const emailEl = document.getElementById('email');
+  const passwordEl = document.getElementById('password');
+  const email = emailEl.value.trim();
+  const password = passwordEl.value;
+
+  setError('emailError', '');
+  setError('passwordError', '');
+  document.getElementById('formMsg').textContent = '';
+
+  let valid = true;
+
+  if (!email) {
+    setError('emailError', 'Email is required.');
+    valid = false;
+  } else if (!isValidEmail(email)) {
+    setError('emailError', 'Enter a valid email address (must contain "@").');
+    valid = false;
+  }
+
+  if (!password) {
+    setError('passwordError', 'Password is required.');
+    valid = false;
+  } else if (!isValidPassword(password)) {
+    setError('passwordError', 'Password must be at least 8 characters.');
+    valid = false;
+  }
+
+  if (!valid) return;
+
+  try {
+    const res = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+
+    // textContent (never innerHTML) so any string returned by the server
+    // is rendered as plain text, not parsed as HTML/script -> prevents
+    // reflected XSS even if the server ever echoed back user input.
+    document.getElementById('formMsg').textContent = data.message || 'Unexpected response.';
+  } catch (err) {
+    document.getElementById('formMsg').textContent = 'Network error — please try again.';
+  }
+});
+</script>
+</body>
+</html>
